@@ -12,14 +12,21 @@
 
 int main(void)
 {
-    //set clock to 16MHz
-    m_clockdivide(0);
+    //set clock to 4MHz so the accelerometer reading rate works out
+    m_clockdivide(2); // = 16Mhz / 2^2 = 4Mhz
     
     //call the external setup functions
     wireless_setup();
-    timer1setup(1,0,0x00FF); //timer1 is initially OFF
-
-    //set direction and enable pins here
+    timer1setup(1,1,0x00FF); //timer1 using this for PWM (set OCR1B / OCR1A for duty cycle)
+    timer3setup(64); //timer3 start for the sampling rate of acc. Clock speed = 62500 if m_clockdivide(2)
+    
+    set(DDRC, 6); //C6 for motor direction
+    //PORTB 6 is the enable line if we're using PWM
+    
+    //declare the constants
+    double Kp = 0;
+    double Ki = 0;
+    double Kd = 0;
     
     while (1) {
         //do stuff
@@ -34,8 +41,20 @@ ISR(INT2_vect){ //interrupt when we receive an incoming wireless signal
 ISR(TIMER1_OVF_vect){ //interrupt when timer1 overflows
 }
 
-//accel_setup here
+ISR(TIMER3_OVF_vect){
 
+}
+
+void accel_setup{
+     accel_scale = 1;
+     gyro_scale = 1;
+    
+//    //setup functions from wiki
+//    unsigned char = m_imu_init(unsigned char accel_scale, unsigned char gyro_scale)
+//    unsigned char = m_imu_raw(int* data)
+    
+    }
+    
 void wireless_setup (void) {
     m_bus_init(); //demask the interrupt vector on D2
     sei(); //enable global interupts
@@ -119,6 +138,47 @@ void timer1setup(int trigger, int time_scale, int max){
     
     //flash the green LED to show successful setup
     m_green(ON)
+    m_wait(100);
+    m_green(OFF)
+    m_wait(100);
+}
+
+void timer3setup(int scale){
+    switch (scale) {
+        case 0:
+            clear(TCCR3B, CS32);
+            clear(TCCR3B, CS31);
+            clear(TCCR3B, CS30);
+            break;
+        case 1:
+            clear(TCCR3B, CS32);
+            clear(TCCR3B, CS31);
+            set(TCCR3B, CS30);
+            break;
+        case 1024
+            clear(TCCR3B, CS32);
+            clear(TCCR3B, CS31);
+            set(TCCR3B, CS30);
+            break;
+        default:
+            set(TCCR3B, CS32);
+            clear(TCCR3B, CS31);
+            set(TCCR3B, CS30);
+            break;
+    }
+    
+    //set to mode 14: UP to ICR3 in PWM mode (action at OCR3A)
+    set(TCCR3B, WGM33);
+    set(TCCR3B, WGM32);
+    set(TCCR3A, WGM31);
+    clear(TCCR3A, WGM30);
+    
+    //enable overflow interrupts for Timer 3
+    set(TIMSK3, TOIE3)
+    
+    ICR3 = ;//something to count up to
+    OCR3A = ;//when it matches this do... something
+    m_green(ON);
     m_wait(100);
     m_green(OFF)
     m_wait(100);
